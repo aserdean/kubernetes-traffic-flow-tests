@@ -215,13 +215,7 @@ class TrafficFlowTests:
             else None
         )
 
-        wants_sriov_secondary = (
-            conn.resource_name is not None
-            or conn.server[0].sriov
-            or conn.client[0].sriov
-        )
-
-        if nad_resource_name is None and wants_sriov_secondary:
+        if nad_resource_name is None:
             for node in (conn.server[0], conn.client[0]):
                 dn = (node.default_network or "").strip()
                 if not dn:
@@ -235,47 +229,7 @@ class TrafficFlowTests:
                     nad_resource_name = r
                     break
 
-        if wants_sriov_secondary:
-            if nad == tft_default_secondary:
-                if not nad_resource_name:
-                    raise RuntimeError(
-                        "SR-IOV secondary on the default tft-secondary NAD requires "
-                        "connections[].resource_name (or a default_network NAD that "
-                        "declares k8s.v1.cni.cncf.io/resourceName) so TFT can create the "
-                        "NetworkAttachmentDefinition."
-                    )
-                in_template = tftbase.get_manifest("secondary-nad-sriov.yaml.j2")
-                out_yaml = tftbase.get_manifest_renderpath("secondary-nad-sriov.yaml")
-                _j = json.dumps
-                kjinja2.render_file(
-                    in_template,
-                    {
-                        "nad_name": _j(nad_name),
-                        "name_space": _j(nad_ns),
-                        "net_attach_def_name": _j(nad),
-                        "resource_name": _j(nad_resource_name),
-                        "vlan": tftbase.get_secondary_nad_sriov_vlan(),
-                        "cni_type": _j(tftbase.get_secondary_nad_sriov_cni_type()),
-                    },
-                    out_file=out_yaml,
-                )
-                logger.info(
-                    f'Creating SR-IOV secondary NAD "{nad}" from "{in_template}" -> "{out_yaml}" '
-                    f'(CNI type {tftbase.get_secondary_nad_sriov_cni_type()!r}; '
-                    "if Multus reports the plugin binary is missing under /opt/cni/bin, "
-                    "install SR-IOV CNI (https://github.com/k8snetworkplumbingwg/sriov-cni) "
-                    "or set TFT_SECONDARY_SRIOV_CNI_TYPE to a plugin name that exists on your nodes)"
-                )
-                client.oc(f"apply -f {out_yaml}", die_on_error=True)
-                return
-
-            raise RuntimeError(
-                f"SR-IOV secondary requires an existing NetworkAttachmentDefinition {nad!r}; "
-                "it was not found. Create that NAD, or use the default name tft-secondary "
-                "with connections[].resource_name so TFT can auto-create an SR-IOV NAD."
-            )
-
-        logger.info(f"Creating OVN overlay secondary NAD {nad} in namespace {nad_ns}")
+        logger.info(f"Creating OVN-Kubernetes overlay secondary NAD {nad} in namespace {nad_ns}")
 
         _j = json.dumps
         in_template = tftbase.get_manifest("secondary-nad.yaml.j2")

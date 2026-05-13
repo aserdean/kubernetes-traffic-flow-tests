@@ -28,14 +28,10 @@ tft:
           - name: measure_cpu
           - name: measure_power
           - name: validate_offload
-        # "secondary_network_nad" is always used for tests 27-29.
-        # For these tests, it defaults to "tft-secondary". For other tests,
-        # leaving "secondary_network_nad" unset means to use the primary
-        # network.
-        # "resource_name" is the extended resource for SR-IOV device plugin
-        # (requests/limits). If unset, it is read from the NAD annotation
-        # k8s.v1.cni.cncf.io/resourceName on the secondary NAD (if any), else
-        # on the per-node "default_network" NAD used as Multus default network.
-        # Set explicitly if autodetection cannot reach your NAD (e.g. offline render).
+        # "secondary_network_nad" is used for multi-homing / MNP tests (e.g. 27-31).
+        # Defaults to "tft-secondary"; TFT auto-creates that NAD as OVN-Kubernetes overlay.
+        # "resource_name" is the device-plugin extended resource for pod requests/limits
+        # and may be embedded in the auto-created secondary NAD as resourceName when set.
+        # If unset, it can be read from NAD annotations (secondary or default_network NAD).
 kubeconfig:
 kubeconfig_infra:
