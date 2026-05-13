@@ -208,28 +208,69 @@ class TrafficFlowTests:
         if existing is not None:
             return
 
+        resource_names = {c.resource_name for c in tft.connections}
+        nad_resource_name: str | None = (
+            resource_names.pop()
+            if len(resource_names) == 1 and None not in resource_names
+            else None
+        )
+
         wants_sriov_secondary = (
             conn.resource_name is not None
             or conn.server[0].sriov
             or conn.client[0].sriov
         )
+
+        if nad_resource_name is None and wants_sriov_secondary:
+            for node in (conn.server[0], conn.client[0]):
+                dn = (node.default_network or "").strip()
+                if not dn:
+                    continue
+                if "/" not in dn:
+                    dn = f"{conn.namespace}/{dn}"
+                r = task._detect_resource_name_from_nad(
+                    client, conn.namespace, dn
+                )
+                if r:
+                    nad_resource_name = r
+                    break
+
         if wants_sriov_secondary:
+            if nad == tft_default_secondary:
+                if not nad_resource_name:
+                    raise RuntimeError(
+                        "SR-IOV secondary on the default tft-secondary NAD requires "
+                        "connections[].resource_name (or a default_network NAD that "
+                        "declares k8s.v1.cni.cncf.io/resourceName) so TFT can create the "
+                        "NetworkAttachmentDefinition."
+                    )
+                in_template = tftbase.get_manifest("secondary-nad-sriov.yaml.j2")
+                out_yaml = tftbase.get_manifest_renderpath("secondary-nad-sriov.yaml")
+                _j = json.dumps
+                kjinja2.render_file(
+                    in_template,
+                    {
+                        "nad_name": _j(nad_name),
+                        "name_space": _j(nad_ns),
+                        "net_attach_def_name": _j(nad),
+                        "resource_name": _j(nad_resource_name),
+                        "vlan": tftbase.get_secondary_nad_sriov_vlan(),
+                    },
+                    out_file=out_yaml,
+                )
+                logger.info(
+                    f'Creating SR-IOV secondary NAD "{nad}" from "{in_template}" -> "{out_yaml}"'
+                )
+                client.oc(f"apply -f {out_yaml}", die_on_error=True)
+                return
+
             raise RuntimeError(
-                "Multus secondary tests with SR-IOV (sriov: true and/or resource_name) "
-                "require connections[].secondary_network_nad set to an existing "
-                "SR-IOV NetworkAttachmentDefinition as namespace/name. "
-                "TFT only auto-creates tft-secondary as an OVN overlay NAD (virtual net1), "
-                "which does not provide hardware VFs."
+                f"SR-IOV secondary requires an existing NetworkAttachmentDefinition {nad!r}; "
+                "it was not found. Create that NAD, or use the default name tft-secondary "
+                "with connections[].resource_name so TFT can auto-create an SR-IOV NAD."
             )
 
-        logger.info(f"Creating secondary NAD {nad} in namespace {namespace}")
-
-        resource_names = {c.resource_name for c in tft.connections}
-        resource_name = (
-            resource_names.pop()
-            if len(resource_names) == 1 and None not in resource_names
-            else None
-        )
+        logger.info(f"Creating OVN overlay secondary NAD {nad} in namespace {nad_ns}")
 
         _j = json.dumps
         in_template = tftbase.get_manifest("secondary-nad.yaml.j2")
@@ -238,13 +279,13 @@ class TrafficFlowTests:
             in_template,
             {
                 "nad_name": _j(nad_name),
-                "name_space": _j(namespace),
+                "name_space": _j(nad_ns),
                 "net_attach_def_name": _j(nad),
                 "subnets": _j(tftbase.get_secondary_nad_subnets()),
                 "mtu": tftbase.get_secondary_nad_mtu(),
                 "topology": _j(tftbase.get_secondary_nad_topology()),
-                "has_resource_name": resource_name is not None,
-                "resource_name": _j(resource_name or ""),
+                "has_resource_name": nad_resource_name is not None,
+                "resource_name": _j(nad_resource_name or ""),
             },
             out_file=out_yaml,
         )
