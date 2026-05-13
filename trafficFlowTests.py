@@ -187,16 +187,37 @@ class TrafficFlowTests:
         if server_nad is not None or client_nad is not None:
             return
 
+        # Use an existing NAD from the connection; do not replace it with TFT's OVN overlay.
+        if conn.secondary_network_nad is not None:
+            return
+
         nad = conn.effective_secondary_network_nad
-        nad_name = nad.split("/")[-1]
+        if "/" in nad:
+            nad_ns, nad_name = nad.split("/", 1)
+        else:
+            nad_ns, nad_name = namespace, nad
 
         existing = client.oc_get(
             f"network-attachment-definition/{nad_name}",
-            namespace=namespace,
+            namespace=nad_ns,
             may_fail=True,
         )
         if existing is not None:
             return
+
+        wants_sriov_secondary = (
+            conn.resource_name is not None
+            or conn.server[0].sriov
+            or conn.client[0].sriov
+        )
+        if wants_sriov_secondary:
+            raise RuntimeError(
+                "Multus secondary tests with SR-IOV (sriov: true and/or resource_name) "
+                "require connections[].secondary_network_nad set to an existing "
+                "SR-IOV NetworkAttachmentDefinition as namespace/name. "
+                "TFT only auto-creates tft-secondary as an OVN overlay NAD (virtual net1), "
+                "which does not provide hardware VFs."
+            )
 
         logger.info(f"Creating secondary NAD {nad} in namespace {namespace}")
 
