@@ -461,6 +461,7 @@ class ConfConnection(StructParseBaseNamed):
             plugins = common.structparse_pop_objlist(
                 varg.for_key("plugins"),
                 construct=ConfPlugin.parse,
+                allow_empty=True,
             )
 
             secondary_network_nad = common.structparse_pop_str(

@@ -190,6 +190,7 @@ ENV_TFT_SECONDARY_NAD_SUBNETS = "TFT_SECONDARY_NAD_SUBNETS"
 ENV_TFT_SECONDARY_NAD_MTU = "TFT_SECONDARY_NAD_MTU"
 ENV_TFT_SECONDARY_NAD_TOPOLOGY = "TFT_SECONDARY_NAD_TOPOLOGY"
 ENV_TFT_SECONDARY_SRIOV_VLAN = "TFT_SECONDARY_SRIOV_VLAN"
+ENV_TFT_SECONDARY_SRIOV_CNI_TYPE = "TFT_SECONDARY_SRIOV_CNI_TYPE"
 
 
 @functools.cache
@@ -246,6 +247,13 @@ def get_secondary_nad_sriov_vlan() -> int:
     s = get_environ(ENV_TFT_SECONDARY_SRIOV_VLAN) or "0"
     logger.info(f"env: {ENV_TFT_SECONDARY_SRIOV_VLAN}={shlex.quote(s)}")
     return int(s)
+
+
+@functools.cache
+def get_secondary_nad_sriov_cni_type() -> str:
+    s = (get_environ(ENV_TFT_SECONDARY_SRIOV_CNI_TYPE) or "sriov").strip()
+    logger.info(f"env: {ENV_TFT_SECONDARY_SRIOV_CNI_TYPE}={shlex.quote(s)}")
+    return s
 
 
 T = typing.TypeVar("T")

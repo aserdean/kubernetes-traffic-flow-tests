@@ -255,11 +255,16 @@ class TrafficFlowTests:
                         "net_attach_def_name": _j(nad),
                         "resource_name": _j(nad_resource_name),
                         "vlan": tftbase.get_secondary_nad_sriov_vlan(),
+                        "cni_type": _j(tftbase.get_secondary_nad_sriov_cni_type()),
                     },
                     out_file=out_yaml,
                 )
                 logger.info(
-                    f'Creating SR-IOV secondary NAD "{nad}" from "{in_template}" -> "{out_yaml}"'
+                    f'Creating SR-IOV secondary NAD "{nad}" from "{in_template}" -> "{out_yaml}" '
+                    f'(CNI type {tftbase.get_secondary_nad_sriov_cni_type()!r}; '
+                    "if Multus reports the plugin binary is missing under /opt/cni/bin, "
+                    "install SR-IOV CNI (https://github.com/k8snetworkplumbingwg/sriov-cni) "
+                    "or set TFT_SECONDARY_SRIOV_CNI_TYPE to a plugin name that exists on your nodes)"
                 )
                 client.oc(f"apply -f {out_yaml}", die_on_error=True)
                 return

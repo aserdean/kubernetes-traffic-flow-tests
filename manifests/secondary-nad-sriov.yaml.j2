@@ -10,6 +10,6 @@ metadata:
 spec:
   config: '{
     "cniVersion": "0.4.0",
-    "type": "sriov",
+    "type": {{ cni_type }},
     "vlan": {{ vlan }}
   }'

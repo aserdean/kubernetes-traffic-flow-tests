@@ -175,7 +175,7 @@ kubeconfig_infra: (30)
     | measure_power    | Measure Power Usage  |
     | validate_offload | Verify OvS Offload   |
 21. "test_cases" - (Optional) Restrict a plugin to run only for the specified test cases. Uses the same format as the top-level `test_cases` field. By default, the plugin runs for every test case.
-22. "secondary_network_nad" - (Optional) - The name of the secondary network for multi-homing and multi-networkpolicies tests. For tests except 27-31, the primary network will be used if unspecified (the default which is None). For mandatory tests 27-31 it defaults to "tft-secondary" if not set. Can be overridden per-node using the server/client level `secondary_network_nad` fields. The framework automatically creates and cleans up the NAD when these test cases are selected or when SRIOV nodes reference a secondary NAD. Subnets, MTU, and topology default to `10.193.0.0/16/26`, `1500`, and `layer3`, overridable via `TFT_SECONDARY_NAD_SUBNETS`, `TFT_SECONDARY_NAD_MTU`, and `TFT_SECONDARY_NAD_TOPOLOGY`.
+22. "secondary_network_nad" - (Optional) - The name of the secondary network for multi-homing and multi-networkpolicies tests. For tests except 27-31, the primary network will be used if unspecified (the default which is None). For mandatory tests 27-31 it defaults to "tft-secondary" if not set. Can be overridden per-node using the server/client level `secondary_network_nad` fields. The framework creates and cleans up the NAD when these test cases are selected: OVN overlay for non-SR-IOV, or an SR-IOV NAD when `sriov` and/or `resource_name` is set on the connection (CNI `type` defaults to `sriov`, overridable via `TFT_SECONDARY_SRIOV_CNI_TYPE`; VLAN via `TFT_SECONDARY_SRIOV_VLAN`). Subnets, MTU, and topology for the OVN variant default to `10.193.0.0/16/26`, `1500`, and `layer3`, overridable via `TFT_SECONDARY_NAD_SUBNETS`, `TFT_SECONDARY_NAD_MTU`, and `TFT_SECONDARY_NAD_TOPOLOGY`.
 23. "resource_name" - (Optional) - The resource name for tests that require resource limit and requests to be set. This field is optional and will default to None if not set, but if secondary network nad is defined, traffic flow test tool will try to autopopulate resource_name based on the secondary+network_nad provided.
 24. "cpu_request" - (Optional) CPU request for server and client pods (e.g. "10m", "500m"). No CPU request is set if omitted.
 25. "cpu_limit" - (Optional) CPU limit for server and client pods (e.g. "20m", "1000m"). No CPU limit is set if omitted.
@@ -370,6 +370,8 @@ tft:
 - `TFT_UDN_SECONDARY_CIDR` CIDR for secondary UDN tests. Defaults to `15.2.0.0/16`.
 - `TFT_UDN_LOCALNET_CIDR` CIDR for localnet UDN tests. Defaults to `15.3.0.0/24`.
 - `TFT_UDN_LOCALNET_PHYSICAL_NETWORK` physical network name for localnet UDN tests. Defaults to `physnet`.
+- `TFT_SECONDARY_SRIOV_VLAN` VLAN for the auto-generated SR-IOV `tft-secondary` NAD (default `0`).
+- `TFT_SECONDARY_SRIOV_CNI_TYPE` CNI `type` field in that NAD (default `sriov`). Must match a binary under `/opt/cni/bin` on each node (install [sriov-cni](https://github.com/k8snetworkplumbingwg/sriov-cni) if you use the default), or point `secondary_network_nad` at your own NAD instead of `tft-secondary`.
 - `TFT_EXTERNAL_URL` URL to curl for external connectivity tests (e.g. `http://google.com`).
      Only effective when the connection type is `http` and the connection mode is `POD_TO_EXTERNAL`
      or `HOST_TO_EXTERNAL`. When set, no Podman server is started; the client pod curls this URL
