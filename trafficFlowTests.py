@@ -187,9 +187,12 @@ class TrafficFlowTests:
         if server_nad is not None or client_nad is not None:
             return
 
-        # Use an existing NAD from the connection; do not replace it with TFT's OVN overlay.
+        # User supplied a custom secondary NAD (not TFT's default tft-secondary);
+        # do not create the OVN overlay NAD here.
+        tft_default_secondary = f"{conn.namespace}/tft-secondary"
         if conn.secondary_network_nad is not None:
-            return
+            if conn.effective_secondary_network_nad != tft_default_secondary:
+                return
 
         nad = conn.effective_secondary_network_nad
         if "/" in nad:
