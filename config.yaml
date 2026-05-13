@@ -32,9 +32,10 @@ tft:
         # For these tests, it defaults to "tft-secondary". For other tests,
         # leaving "secondary_network_nad" unset means to use the primary
         # network.
-        # "resource_name" is the resource name for SRIOV pods, where
-        # the resource requests and limits are configured. If unset and a
-        # "secondary_network_nad" is used, the "resource_name" is detected.
-        # Otherwise, no resource name is used.
+        # "resource_name" is the extended resource for SR-IOV device plugin
+        # (requests/limits). If unset, it is read from the NAD annotation
+        # k8s.v1.cni.cncf.io/resourceName on the secondary NAD (if any), else
+        # on the per-node "default_network" NAD used as Multus default network.
+        # Set explicitly if autodetection cannot reach your NAD (e.g. offline render).
 kubeconfig:
 kubeconfig_infra:

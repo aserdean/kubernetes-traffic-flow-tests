@@ -69,32 +69,34 @@ class _OperationState(enum.Enum):
     STOPPED = 5
 
 
-def _detect_default_resource_name(
+def _detect_resource_name_from_nad(
     client: K8sClient,
-    namespace: str,
-    secondary_network_nad: Optional[str],
+    default_namespace: str,
+    nad_ref: Optional[str],
 ) -> Optional[str]:
-    if secondary_network_nad is not None:
-        if "/" in secondary_network_nad:
-            ns, nad = secondary_network_nad.split("/", 1)
-        else:
-            ns, nad = namespace, secondary_network_nad
-        data = client.oc_get(
-            f"network-attachment-definition/{nad}",
-            namespace=ns,
-        )
+    """Read k8s.v1.cni.cncf.io/resourceName from a NetworkAttachmentDefinition."""
+    if not nad_ref:
+        return None
+    s = nad_ref.strip()
+    if not s:
+        return None
+    if "/" in s:
+        ns, nad = s.split("/", 1)
     else:
-        data = None
-    resource_name = None
-
-    if data is not None:
-        try:
-            r = data["metadata"]["annotations"]["k8s.v1.cni.cncf.io/resourceName"]
-            if isinstance(r, str) and r:
-                resource_name = r
-        except Exception:
-            pass
-    return resource_name
+        ns, nad = default_namespace, s
+    data = client.oc_get(
+        f"network-attachment-definition/{nad}",
+        namespace=ns,
+    )
+    if data is None:
+        return None
+    try:
+        r = data["metadata"]["annotations"]["k8s.v1.cni.cncf.io/resourceName"]
+        if isinstance(r, str) and r:
+            return r
+    except Exception:
+        pass
+    return None
 
 
 class TaskOperation:
@@ -373,12 +375,20 @@ class Task(ABC):
             self._get_node_secondary_network_nad()
             or self.ts.connection.secondary_network_nad
         )
+        default_net = (self.node.default_network or "").strip()
+        if default_net and "/" not in default_net:
+            default_net = f"{self.get_namespace()}/{default_net}"
         resource_name = (
             resource_name_config
-            or _detect_default_resource_name(
+            or _detect_resource_name_from_nad(
                 self.client,
                 self.get_namespace(),
                 nad_for_detection,
+            )
+            or _detect_resource_name_from_nad(
+                self.client,
+                self.get_namespace(),
+                default_net or None,
             )
             or ""
         )
