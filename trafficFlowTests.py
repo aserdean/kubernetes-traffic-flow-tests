@@ -200,14 +200,6 @@ class TrafficFlowTests:
         else:
             nad_ns, nad_name = namespace, nad
 
-        existing = client.oc_get(
-            f"network-attachment-definition/{nad_name}",
-            namespace=nad_ns,
-            may_fail=True,
-        )
-        if existing is not None:
-            return
-
         resource_names = {c.resource_name for c in tft.connections}
         nad_resource_name: str | None = (
             resource_names.pop()
@@ -229,7 +221,10 @@ class TrafficFlowTests:
                     nad_resource_name = r
                     break
 
-        logger.info(f"Creating OVN-Kubernetes overlay secondary NAD {nad} in namespace {nad_ns}")
+        logger.info(
+            f"Applying OVN-Kubernetes overlay secondary NAD {nad} in namespace {nad_ns} "
+            "(idempotent apply so NAD metadata e.g. device-plugin resourceName stays current)"
+        )
 
         _j = json.dumps
         in_template = tftbase.get_manifest("secondary-nad.yaml.j2")
