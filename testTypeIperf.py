@@ -19,6 +19,7 @@ from testType import TestTypeHandler
 from tftbase import BaseOutput
 from tftbase import Bitrate
 from tftbase import FlowTestOutput
+from tftbase import PodType
 from tftbase import TestType
 
 logger = common.ExtendedLogger("tft." + __name__)
@@ -91,6 +92,15 @@ def _calculate_gbps(test_type: TestType, result: Mapping[str, Any]) -> Bitrate:
         return Bitrate.NA
 
 
+def _server_args_specify_bind(server_args: tuple[str, ...]) -> bool:
+    for tok in server_args:
+        if tok in ("-B", "--bind"):
+            return True
+        if tok.startswith("-B") and len(tok) > 2:
+            return True
+    return False
+
+
 @dataclass(frozen=True)
 class TestTypeHandlerIperf(TestTypeHandler):
     def _create_server_client(self, ts: TestSettings) -> tuple[ServerTask, ClientTask]:
@@ -109,15 +119,55 @@ TestTypeHandler.register_test_type(TestTypeHandlerIperf(TestType.IPERF_UDP))
 
 
 class IperfServer(task.ServerTask):
+    def _get_ovn_node_primary_ipv4_for_bind(self) -> Optional[str]:
+        y = self.run_oc_get(
+            f"node/{self.node_name}",
+            may_fail=True,
+            namespace=None,
+        )
+        if not y:
+            return None
+        raw = (y.get("metadata", {}).get("annotations") or {}).get(
+            "k8s.ovn.org/node-primary-ifaddr"
+        )
+        if not isinstance(raw, str) or not raw.strip():
+            return None
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError:
+            logger.debug(
+                f"node {self.node_name}: k8s.ovn.org/node-primary-ifaddr is not JSON: {raw!r}"
+            )
+            return None
+        addr = data.get("ipv4")
+        if not isinstance(addr, str) or not addr.strip():
+            return None
+        return addr.split("/", 1)[0].strip() or None
+
     def cmd_line_args(self, *, for_template: bool = False) -> list[str]:
         if for_template:
-            extra_args = []
+            extra_args: list[str] = []
         else:
             extra_args = ["--one-off", "--json"]
         server_args = self.ts.cfg_descr.get_server().args or ()
+        bind_args: list[str] = []
+        if (
+            not for_template
+            and self.pod_type == PodType.HOSTBACKED
+            and not tftbase.get_tft_iperf_no_ovn_primary_hostbind()
+            and not _server_args_specify_bind(server_args)
+        ):
+            ip = self._get_ovn_node_primary_ipv4_for_bind()
+            if ip:
+                bind_args = ["-B", ip]
+                logger.info(
+                    f"iperf3 hostNetwork server: using -B {ip!r} from "
+                    "node annotation k8s.ovn.org/node-primary-ifaddr"
+                )
         return [
             IPERF_EXE,
             "-s",
+            *bind_args,
             "-p",
             f"{self.port}",
             *extra_args,

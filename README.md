@@ -366,6 +366,7 @@ tft:
      defaults to "manifests/yamls".
 - `TFT_KUBECONFIG`, `TFT_KUBECONFIG_INFRA` to overwrite the kubeconfigs from the configuration
      file. See also the "--kubeconfig" and "--kubeconfig-infra" command line options.
+- `TFT_IPERF_NO_OVN_PRIMARY_HOSTBIND` if `true`, disables automatic `iperf3 -B <ipv4>` on **hostNetwork** iperf servers. By default (unset or `false`), when the server runs on the host, TFT reads `k8s.ovn.org/node-primary-ifaddr` on the Node and passes the IPv4 address to `iperf3 -B` so UDP/TCP control and data use the OVN primary interface (avoids asymmetric routing when the node has multiple defaults).
 - `TFT_UDN_PRIMARY_CIDR` CIDR for primary UDN tests. Defaults to `15.1.0.0/16`.
 - `TFT_UDN_SECONDARY_CIDR` CIDR for secondary UDN tests. Defaults to `15.2.0.0/16`.
 - `TFT_UDN_LOCALNET_CIDR` CIDR for localnet UDN tests. Defaults to `15.3.0.0/24`.

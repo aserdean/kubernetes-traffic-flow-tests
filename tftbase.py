@@ -25,6 +25,7 @@ ENV_TFT_RDMA_TEST_IMAGE = "TFT_RDMA_TEST_IMAGE"
 ENV_TFT_IMAGE_PULL_POLICY = "TFT_IMAGE_PULL_POLICY"
 
 ENV_TFT_PRIVILEGED_POD = "TFT_PRIVILEGED_POD"
+ENV_TFT_IPERF_NO_OVN_PRIMARY_HOSTBIND = "TFT_IPERF_NO_OVN_PRIMARY_HOSTBIND"
 
 ENV_TFT_TEST_IMAGE_DEFAULT = (
     "ghcr.io/ovn-kubernetes/kubernetes-traffic-flow-tests:latest"
@@ -129,6 +130,19 @@ def get_tft_privileged_pod() -> Optional[bool]:
         f"env: {ENV_TFT_PRIVILEGED_POD}={common.bool_to_str(value) if value is not None else ''}"
     )
     return value
+
+
+@functools.cache
+def get_tft_iperf_no_ovn_primary_hostbind() -> bool:
+    d = get_environ(ENV_TFT_IPERF_NO_OVN_PRIMARY_HOSTBIND)
+    if not d:
+        v = False
+    else:
+        v = common.str_to_bool(d, on_default=False) is True
+    logger.info(
+        f"env: {ENV_TFT_IPERF_NO_OVN_PRIMARY_HOSTBIND}={common.bool_to_str(v)}"
+    )
+    return v
 
 
 @functools.cache
